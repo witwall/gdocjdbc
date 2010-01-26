@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project name="Build gdocjdbc" default="dist">
+<!-- this will actually build the src and produce a .jar file-->
+
+
+<target name="dist"/>
+
+</project>

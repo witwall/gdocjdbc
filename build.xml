@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project name="Google Doc jdbc driver" default="listTables">
+	
+	<property file="build.properties"/>
+	<property name="driver" value="org.gdocjdbc.jdbcDriver"/>
+	<property name="url" value="jdbc:gdocjdbc"/>
+
+		
+    <path id="classpath">
+    	<fileset dir="lib" includes="*.jar"/>
+        <pathelement location="bin"/>
+    </path>
+	
+	<!-- the output of the sql tasks stops after the first one runs for some reason.  So this isn't going to work-->
+	<!--target name="runAll" depends="initialDBCreate, numOfTables, listTables"/-->
+	
+	<target name="init" depends="checkForUsername,checkForPassword"/>
+	
+	<target name="checkForUsername" unless="gdoc.username">
+		<echo message="If you don't want to be prompted for a username and password just create a build.properties files and put these properties in there"/>
+		<input message="Enter Google Docs Username:"  addproperty="gdoc.username" />
+	</target>
+	
+	<target name="checkForPassword" unless="gdoc.password">
+		<input message="Enter Google Docs Password:"  addproperty="gdoc.password" />
+	</target>
+	
+	<!--a donothing SQL call which will launch the driver and create the local tables from the Google Docs.  This is so subsequent SELECTS don't trigger this-->
+	<target name="initialDBCreate" depends="init">
+		<echo message="Hitting the DB to trigger the initial import of Google Doc Data.  This will hapened when making the connection for the first time"/>
+		<sql driver="${driver}" url="${url}" userid="${gdoc.username}"  password="${gdoc.password}" classpathref="classpath">
+			select TOP 1 NOW() from INFORMATION_SCHEMA.SYSTEM_TABLES
+		</sql>
+	</target>
+	
+	<target name="numOfTables" depends="init">
+		<echo message="The number if tables created from your Google Doc account is : "/>
+				<sql driver="${driver}" url="${url}" userid="${gdoc.username}"  password="${gdoc.password}" classpathref="classpath" print="true">
+					SELECT count(TABLE_NAME) FROM INFORMATION_SCHEMA.SYSTEM_TABLES where TABLE_TYPE='TABLE' AND TABLE_NAME!='PICKLES_TABLE_INFO'
+				</sql>
+	</target>
+	
+	<target name="listTables" depends="init">	
+		<echo message="Here are the table names created from your Google Doc account : "/>
+		<sql driver="${driver}" url="${url}" userid="${gdoc.username}"  password="${gdoc.password}" classpathref="classpath" print="true">
+			SELECT TABLE_NAME AS NUMBEROFROWS FROM INFORMATION_SCHEMA.SYSTEM_TABLES where TABLE_TYPE='TABLE' AND TABLE_NAME!='PICKLES_TABLE_INFO'
+		</sql>
+		</target>
+	
+	<target name="runCustomSQL" depends="init">
+		<input message="Enter any SQL statement" defaultvalue="SELECT * FROM MYTABLE" addproperty="gdoc.custom.sql" />
+		<sql driver="${driver}" url="${url}" userid="${gdoc.username}"  password="${gdoc.password}" classpathref="classpath" print="true">
+			${gdoc.custom.sql}
+		</sql>
+	</target>
+	
+	
+	
+	
+</project>
