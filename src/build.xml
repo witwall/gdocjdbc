@@ -1,9 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<project name="Build gdocjdbc" default="dist">
+<project name="Build gdocjdbc jars" default="dist">
 <!-- this will actually build the src and produce a .jar file-->
 
 
-<target name="dist"/>
+	<path id="classpath">
+        <fileset dir="../lib" includes="*.jar"/>
 
+	</path>
+	
+	<target name="dist">
+		<javac srcdir="." destdir="../tempbuild">
+			<classpath refid="classpath"/>
+		</javac>
+		
+		<jar basedir="../tempbuild" destfile="../gdocjdbc-0_01.jar" excludes="org/gdocjdbc/test/**" />
+	</target>
 </project>
