@@ -15,5 +15,7 @@
 		</javac>
 		
 		<jar basedir="../tempbuild" destfile="../gdocjdbc-0_01.jar" excludes="org/gdocjdbc/test/**" />
+		<zip destfile="../dist/gdocjdbc-0_01.zip" basedir="../" includes="gdocjdbc-0_01.jar, build.xml, src/**/*, lib/*"/>
+
 	</target>
 </project>
