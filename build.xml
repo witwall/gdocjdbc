@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<project name="Google Doc jdbc driver" default="listTables">
+<project name="Google Doc jdbc driver" default="runCustomSQL">
 	
 	<property file="build.properties"/>
 	<property name="driver" value="org.gdocjdbc.jdbcDriver"/>
@@ -50,7 +50,8 @@
 		</target>
 	
 	<target name="runCustomSQL" depends="init">
-		<input message="Enter any SQL statement" defaultvalue="SELECT * FROM simpsonscharacters_Sheet1 where voicedby='Hank Azaria'" addproperty="gdoc.custom.sql" />
+		<input message="Enter any SQL statement (Or just hit enter to use the default)" defaultvalue="SELECT * FROM simpsonscharacters_Sheet1 where voicedby='Hank Azaria'" addproperty="gdoc.custom.sql" />
+		<echo message="Running SQL statement : ${gdoc.custom.sql}"/>
 		<sql driver="${driver}" url="${url}" userid="${gdoc.username}"  password="${gdoc.password}" classpathref="classpath" print="true">
 			${gdoc.custom.sql}
 		</sql>
