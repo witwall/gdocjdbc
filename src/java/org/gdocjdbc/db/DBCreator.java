@@ -15,6 +15,8 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.hsqldb.Token;
+
 import com.google.gdata.client.spreadsheet.FeedURLFactory;
 import com.google.gdata.client.spreadsheet.SpreadsheetService;
 import com.google.gdata.data.spreadsheet.ListEntry;
@@ -189,7 +191,10 @@ private Map<String, String> createTable(String tablename, ListEntry entry) throw
 				//to support overriding later on
 				colType = "null";
 				columnNames.put(tag.toUpperCase(), null);
-				createString.append(tag.toUpperCase() + " "+((colType.equals("null"))?DEFAULT_COLUMN_TYPE:colType)+", ");
+				createString.append(scrubReservedWords(tag.toUpperCase()) +" "+((colType.equals("null"))?DEFAULT_COLUMN_TYPE:colType)+", ");
+				if(!tag.toUpperCase().equals(scrubReservedWords(tag.toUpperCase()))) {
+					log.log(Level.WARNING, "Column name : " + tag.toUpperCase() + " contains a resereved word and was changed to :" + scrubReservedWords(tag.toUpperCase()));
+				}
 			}
 	     }
     createString.delete(createString.length()-2, createString.length()-1);
@@ -204,7 +209,16 @@ private Map<String, String> createTable(String tablename, ListEntry entry) throw
 	
 }
 
-	
+
+private String scrubReservedWords(String name) {
+	String newName = name+"_COL";
+	if(Token.isKeyword(name)) {
+		return newName;
+	} else {
+		return name;
+	}
+}
+
 private void populateDBFromSpeadsheet(SpreadsheetEntry sse) throws SQLException {
 	
 		try {
@@ -218,21 +232,24 @@ private void populateDBFromSpeadsheet(SpreadsheetEntry sse) throws SQLException 
 		    
 			for(WorksheetEntry worksheet : worksheetList) {
 			   
+				
 				String workSheetTitle = scrubTableName(worksheet.getTitle().getPlainText());
-				
-				
-				
-			    URL listFeedUrl = worksheet.getListFeedUrl();
-			    ListFeed feed = spreadsheetsService.getFeed(listFeedUrl, ListFeed.class);
-			    if(feed.getEntries().size() < 1) {
-			    	log.info("Worksheet: " + workSheetTitle + " from document: "+documentName + " is empty so skipping it.");
-			    	break;
-			    }
-			    Map<String, String> columnNames = createTable(documentName+"_"+workSheetTitle,feed.getEntries().get(0));
-			    log.info("populating table : "+documentName+"_"+workSheetTitle);
-			    for (ListEntry entry : feed.getEntries()) {
-			    	insertEntry(documentName, workSheetTitle, entry, columnNames);
-			    }
+				try {
+					URL listFeedUrl = worksheet.getListFeedUrl();
+				    ListFeed feed = spreadsheetsService.getFeed(listFeedUrl, ListFeed.class);
+				    if(feed.getEntries().size() < 1) {
+				    	log.info("Worksheet: " + workSheetTitle + " from document: "+documentName + " is empty so skipping it.");
+				    	break;
+				    }
+				    Map<String, String> columnNames = createTable(documentName+"_"+workSheetTitle,feed.getEntries().get(0));
+				    log.info("populating table : "+documentName+"_"+workSheetTitle);
+				    for (ListEntry entry : feed.getEntries()) {
+				    	insertEntry(documentName, workSheetTitle, entry, columnNames);
+				    }
+				    
+				} catch (SQLException sqe) {
+					log.log(Level.SEVERE, "Problem creating table : " + documentName+"_"+workSheetTitle, sqe);
+				}
 			}
 
 		} catch (MalformedURLException e) {
@@ -265,7 +282,7 @@ private void populateDBFromSpeadsheet(SpreadsheetEntry sse) throws SQLException 
 			if(columnNames.containsKey(tag.toUpperCase())) {
 				tempStr = entry.getCustomElements().getValue(tag);
 				tempStr = (tempStr==null)?"":tempStr;
-				colNames += tag.toUpperCase()+", ";
+				colNames += scrubReservedWords(tag.toUpperCase())+", ";
 				values += "\'"+tempStr.replaceAll("\'", "\'\'")+"\', ";
 			}
 	      }
