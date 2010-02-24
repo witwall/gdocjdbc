@@ -45,6 +45,7 @@ import org.hsqldb.persist.HsqlProperties;
  * @version 1.8.1
  * @since 1.8.0
  */
+@Deprecated
 public class DatabaseURL {
 
     static final String        S_DOT        = ".";

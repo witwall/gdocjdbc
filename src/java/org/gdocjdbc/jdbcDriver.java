@@ -4,7 +4,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
 
-import org.gdocjdbc.db.DBCreator;
+import org.gdocjdbc.db.DBManager;
 import org.hsqldb.Trace;
 import org.hsqldb.jdbc.jdbcConnection;
 import org.hsqldb.persist.HsqlProperties;
@@ -36,13 +36,16 @@ public class jdbcDriver extends org.hsqldb.jdbcDriver implements java.sql.Driver
 		String googleDocUsername = info.getProperty("user");
 		String googleDocPassword = info.getProperty("password");
 		
-		new DBCreator(googleDocUsername, googleDocPassword);
+		DBManager dbCreator = new DBManager(googleDocUsername, googleDocPassword);
 		
+		//creating DB for the first time
 		//dbCreator.createDatabase();
 		
 		info.setProperty("user", "sa");
 		info.setProperty("password", "");
-		String hsqlDBURL = url+":mem:"+ DBCreator.scrubUserName(googleDocUsername);
+		//String hsqlDBURL = url+":mem:"+ DBManager.scrubUserName(googleDocUsername);
+		String hsqlDBURL = dbCreator.getCurrentDBUrl();
+		
 		return getConnection(hsqlDBURL, info);
 	}
 
@@ -50,7 +53,7 @@ public class jdbcDriver extends org.hsqldb.jdbcDriver implements java.sql.Driver
              Properties info)
              throws SQLException {
 
-		HsqlProperties props = DatabaseURL.parseURL(url, true);
+		HsqlProperties props = org.hsqldb.DatabaseURL.parseURL(url, true);
 		
 		if (props == null) {
 		

@@ -28,56 +28,118 @@ import com.google.gdata.util.AuthenticationException;
 import com.google.gdata.util.ServiceException;
 
 
-public class DBCreator {
+public class DBManager {
 
 	  private static SpreadsheetService spreadsheetsService= null;
 	  
 	  public static final String SPREADSHEETS_SERVICE_NAME = "wise";
 	  private Connection con = null;
+	  private Connection infoConnection = null;
 	  private static final String DEFAULT_COLUMN_TYPE="VARCHAR(100)";
-	  private static Logger log = Logger.getLogger(DBCreator.class.getName());
+	  private static Logger log = Logger.getLogger(DBManager.class.getName());
+	  String infoDBUrl = "";
+	  String thisInstanceDBUrl = "";
 	  String username = "";
 	  String password = "";
 	  String userDBName = "";
 	  boolean created = false;
 	  
 	  
-	  public DBCreator(String username, String password) {
+	  public DBManager(String username, String password, String dbURL) throws SQLException {
+		  init(username, password, dbURL);
+		  log.info("Using the DB URL : " + thisInstanceDBUrl);
+	  }
+	  
+
+	  public DBManager(String username, String password) throws SQLException {
+		  init(username, password, null);
+		  log.info("Using the DB URL : " + thisInstanceDBUrl);
+	  }
+
+	private void init(String username, String password, String dbURL) throws SQLException {
 		  this.username = username;
 		  this.password = password;
 		  this.userDBName = scrubUserName(username);
-		  try {
-			setUpConnection();
+		  
+		  infoDBUrl = "jdbc:hsqldb:mem:"+userDBName+"_info";
+		  infoConnection = DriverManager.getConnection(infoDBUrl, "sa", "");
+		  
+
+			  if(!infoTableExists()) {
+				  //must be the first time this driver is being used in this JVM
+				  //create table keeping track of the DB information
+					createInfoTable();
+					thisInstanceDBUrl = getCurrentDBUrl();
+					con = DriverManager.getConnection(thisInstanceDBUrl, "sa", "");
+					
+				  //Creating the database for the first time.
+					createDatabase();
+					DatabaseCacheControl dbCacheControl = new DatabaseCacheControl(username, password, 30);
+					dbCacheControl.startRecachingService();
+			  } else {
+				  if(dbURL != null) {
+					  thisInstanceDBUrl = dbURL;
+					  con = DriverManager.getConnection(dbURL, "sa", "");
+				  } else {
+					  thisInstanceDBUrl = getCurrentDBUrl();
+					  con = DriverManager.getConnection(thisInstanceDBUrl, "sa", "");
+				  }
+			  }
 			
-			if(tablesExists()) {
-				log.info("Table(s) have been setup previously");
-			} else {
-				
-				createInfoTable();
-				
-				createDatabase();
-			}
 			
-		  } catch (SQLException e) {
-			  log.log(Level.SEVERE, "Problem with connection", e);
-		  }
+	}
+    public String getCurrentDBUrl() throws SQLException {
+    	Statement stmt = null;
+		stmt = infoConnection.createStatement();
+		String select = "SELECT PROPVALUE FROM PICKLES_TABLE_INFO where PROPNAME='CURRENT_DB_URL'";
+		ResultSet rs = stmt.executeQuery(select);
+		String dbURL = null;
 		
+		while(rs.next()) {
+			dbURL =rs.getString("PROPVALUE");
+		}
+		stmt.close();
 		
+		return dbURL;
+    }
+	 
+    
+    public void switchActiveDatabase(String dbURL) throws SQLException {
+    	Statement stmt = null;
+		stmt = infoConnection.createStatement();
+		String sql = "UPDATE PICKLES_TABLE_INFO set PROPVALUE='"+dbURL+"' where PROPNAME='CURRENT_DB_URL'";
+		Integer num = stmt.executeUpdate(sql);
 		
-	  }
+		if (stmt.executeUpdate(sql) < 1) {
+			log.severe("The update to switch to the new DB did not take place");
+		} else {
+			log.info("Updated table with URL: "+ dbURL);
+		}
 
-
-	 private void setUpConnection() throws SQLException {
-		 try {
-				Class.forName("org.hsqldb.jdbcDriver" );
-			} catch (ClassNotFoundException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-			Statement stmt = null;
-			con = DriverManager.getConnection("jdbc:hsqldb:mem:"+userDBName, "sa", "");
-	 }
-
+		stmt.close();
+		
+		//clean out old database tables
+    }
+    
+    public void deleteDatabaseTables() throws SQLException {
+    	log.info(thisInstanceDBUrl + " : deleting tables");
+    	//there should be an easier way to drop the schema
+    	Statement stmt = null;
+		stmt = con.createStatement();
+		String sql = "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.SYSTEM_TABLES where TABLE_TYPE='TABLE'";
+    	
+		ResultSet rs = stmt.executeQuery(sql);
+		
+		while(rs.next()) {
+			Statement stmt2 = con.createStatement();
+			String tableName = rs.getString("TABLE_NAME");
+			log.info("dropping table name : " + tableName);
+			String sql2 = "DROP TABLE " + tableName +";";
+			stmt2.executeUpdate(sql2);
+		}
+		
+    }
+    
 	public void createDatabase() throws SQLException {
 			  log.log(Level.INFO, "Local Database of Google Doc data doesn't exist, creating it...");
 			  setupGoogleDocConnection(username,password);
@@ -104,16 +166,15 @@ public class DBCreator {
   				populateDBFromSpeadsheet(sse);
   			  }
   			  
-  			  Statement stmt = con.createStatement();
-  			  stmt.executeUpdate("UPDATE PICKLES_TABLE_INFO SET MODIFIED_DATE_END=now()");
+  			  Statement stmt = infoConnection.createStatement();
+  			  stmt.executeUpdate("UPDATE PICKLES_TABLE_INFO SET MODIFIED_DATE=now() where PROPNAME='CURRENT_DB_URL'");
   			  stmt.close();
   			  
 	  }
 	  
-	  
-	private boolean tablesExists() throws SQLException {
+	private boolean infoTableExists() throws SQLException {
 		Statement stmt = null;
-		stmt = con.createStatement();
+		stmt = infoConnection.createStatement();
 		String select = "SELECT COUNT(*) as MYCOUNT FROM INFORMATION_SCHEMA.SYSTEM_TABLES where TABLE_NAME=\'PICKLES_TABLE_INFO\'";
 		boolean tableExists = false;
 		ResultSet rs = stmt.executeQuery(select);
@@ -129,22 +190,27 @@ public class DBCreator {
 
 	
 	private void createInfoTable() throws SQLException {
+		log.info("Creating info database for the first time");
 		StringBuffer createString = new StringBuffer();
 		createString.append("create table PICKLES_TABLE_INFO (");
-		createString.append("CREATE_DATE DATE,");
-		createString.append("MODIFIED_DATE_START DATE,");			
-		createString.append("MODIFIED_DATE_END DATE");		
+		createString.append("PROPNAME VARCHAR(100),");
+		createString.append("PROPVALUE VARCHAR(100),");				
+		createString.append("MODIFIED_DATE DATE");
 		createString.append(");");
 				
 
 
 		Statement stmt = null;
-		stmt = con.createStatement();
+		stmt = infoConnection.createStatement();
 		stmt.executeUpdate(createString+"");
 		stmt.close();
 		
-		stmt = con.createStatement();
-		stmt.executeUpdate("INSERT INTO PICKLES_TABLE_INFO (CREATE_DATE, MODIFIED_DATE_START) VALUES(SYSDATE, SYSDATE)");
+		stmt = infoConnection.createStatement();
+		stmt.executeUpdate("INSERT INTO PICKLES_TABLE_INFO (PROPNAME, MODIFIED_DATE) VALUES('INFO_CREATE_DATE', SYSDATE)");
+		stmt.close();
+		
+		stmt = infoConnection.createStatement();
+		stmt.executeUpdate("INSERT INTO PICKLES_TABLE_INFO (PROPNAME, PROPVALUE, MODIFIED_DATE) VALUES('CURRENT_DB_URL','jdbc:hsqldb:mem:"+userDBName+"_0', SYSDATE)");
 		stmt.close();
 	}
 
@@ -242,7 +308,7 @@ private void populateDBFromSpeadsheet(SpreadsheetEntry sse) throws SQLException 
 				    	break;
 				    }
 				    Map<String, String> columnNames = createTable(documentName+"_"+workSheetTitle,feed.getEntries().get(0));
-				    log.info("populating table : "+documentName+"_"+workSheetTitle);
+				    log.info(thisInstanceDBUrl+": populating table : "+documentName+"_"+workSheetTitle);
 				    for (ListEntry entry : feed.getEntries()) {
 				    	insertEntry(documentName, workSheetTitle, entry, columnNames);
 				    }
@@ -309,5 +375,14 @@ private void populateDBFromSpeadsheet(SpreadsheetEntry sse) throws SQLException 
 
 	public static String scrubUserName(String origName) {
 		return origName.replaceAll("[^a-zA-Z0-9]", "");
+	}
+	
+	public String getNextDBUrl() throws SQLException {
+		String url = getCurrentDBUrl();
+		String urlNum = url.substring(url.lastIndexOf('_')+1, url.length());
+		Integer num = Integer.parseInt(urlNum);
+		num = num == 0?1:0;
+		
+		return url.substring(0, url.lastIndexOf('_')) + "_" + num;
 	}
 }
