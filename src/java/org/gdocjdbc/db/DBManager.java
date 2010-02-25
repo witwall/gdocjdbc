@@ -10,6 +10,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
@@ -169,6 +170,8 @@ public class DBManager {
   			  Statement stmt = infoConnection.createStatement();
   			  stmt.executeUpdate("UPDATE PICKLES_TABLE_INFO SET MODIFIED_DATE=now() where PROPNAME='CURRENT_DB_URL'");
   			  stmt.close();
+  			  
+  			  logDatabaseTables();
   			  
 	  }
 	  
@@ -384,5 +387,37 @@ private void populateDBFromSpeadsheet(SpreadsheetEntry sse) throws SQLException 
 		num = num == 0?1:0;
 		
 		return url.substring(0, url.lastIndexOf('_')) + "_" + num;
+	}
+	
+	public void logDatabaseTables() throws SQLException {
+    	Statement stmt = null;
+		stmt = con.createStatement();
+		String sql = "SELECT * FROM INFORMATION_SCHEMA.SYSTEM_COLUMNS WHERE TABLE_NAME NOT LIKE 'SYSTEM_%'";
+    	
+		ResultSet rs = stmt.executeQuery(sql);
+		Map<String, List> tableMap = new HashMap<String, List>();
+		
+		
+		while(rs.next()) {
+			String tableName = rs.getString("TABLE_NAME");
+			String columnName = rs.getString("COLUMN_NAME");
+			
+			if(tableMap.containsKey(tableName)) {
+				List columnList = tableMap.get(tableName);
+				columnList.add(columnName);
+			} else {
+				List columnList = new ArrayList();
+				columnList.add(columnName);
+				tableMap.put(tableName, columnList);
+			}
+		}
+		//print out tables
+		log.info("The tables created from the google doc spreadsheet are :" );
+		
+		for(Iterator<String> it = tableMap.keySet().iterator();it.hasNext();) {
+			String tableName = it.next();
+			List columnList = tableMap.get(tableName);
+			log.info("Tablename: "+tableName+ "    Columns : " + columnList);
+		}
 	}
 }
