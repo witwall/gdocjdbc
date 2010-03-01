@@ -3,6 +3,8 @@
 <project name="Build gdocjdbc jars" default="dist">
 <!-- this will actually build the src and produce a .jar file-->
 
+	<property name="gdocver" value="0_01"/>
+	<property name="gdocfilename" value="gdocjdbc-${gdocver}"/>
 
 	<path id="classpath">
         <fileset dir="../lib" includes="*.jar"/>
@@ -10,12 +12,23 @@
 	</path>
 	
 	<target name="dist">
-		<javac srcdir="." destdir="../tempbuild">
+		<javac srcdir="." destdir="../tempbuild/jar">
 			<classpath refid="classpath"/>
 		</javac>
 		
-		<jar basedir="../tempbuild" destfile="../gdocjdbc-0_01.jar" excludes="org/gdocjdbc/test/**" />
-		<zip destfile="../dist/gdocjdbc-0_01.zip" basedir="../" includes="gdocjdbc-0_01.jar, build.xml, src/**/*, lib/*, doc/*"/>
+		<jar basedir="../tempbuild/jar" destfile="../${gdocfilename}.jar" excludes="org/gdocjdbc/test/**" />
+		<delete dir="../tempbuild/zip"/>
+		<mkdir dir="../tempbuild/zip"/>
+		<copy todir="../tempbuild/zip/${gdocfilename}">
+			<fileset dir="../" >
+				<include name="${gdocfilename}.jar"/>
+				<include name="build.xml"/>
+				<include name="src/**/*"/>
+				<include name="lib/*"/>
+				<include name="doc/*"/>
+			</fileset>
+		</copy>	
+		<zip destfile="../dist/${gdocfilename}.zip" basedir="../tempbuild/zip/" />
 
 	</target>
 </project>
