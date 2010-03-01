@@ -9,7 +9,7 @@
 		
     <path id="classpath">
     	<fileset dir="lib" includes="*.jar"/>
-    	<!--fileset dir="." includes="gdocjdbc*.jar"/-->
+    	<fileset dir="." includes="gdocjdbc*.jar"/>
         <pathelement location="bin"/>
     </path>
 	
