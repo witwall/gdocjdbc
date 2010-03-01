@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -44,20 +45,31 @@ public class DBManager {
 	  String password = "";
 	  String userDBName = "";
 	  boolean created = false;
+	  public static Integer DEFAULT_CACHE_TIME = 30 * 60;
 	  
 	  
 	  public DBManager(String username, String password, String dbURL) throws SQLException {
-		  init(username, password, dbURL);
+		  init(username, password, dbURL, DEFAULT_CACHE_TIME);
 		  log.info("Using the DB URL : " + thisInstanceDBUrl);
 	  }
 	  
 
 	  public DBManager(String username, String password) throws SQLException {
-		  init(username, password, null);
+		  init(username, password, null, DEFAULT_CACHE_TIME);
 		  log.info("Using the DB URL : " + thisInstanceDBUrl);
 	  }
 
-	private void init(String username, String password, String dbURL) throws SQLException {
+	  
+    public DBManager(Properties dbProbs) throws SQLException {
+    	Integer cacheTime = DEFAULT_CACHE_TIME;
+    	if(dbProbs.getProperty("cacheExpire") != null) {
+    		cacheTime =Integer.parseInt(dbProbs.getProperty("cacheExpire"));
+    	}
+    	init(dbProbs.getProperty("user"), dbProbs.getProperty("password"), null, cacheTime);
+    }
+    
+	  
+	private void init(String username, String password, String dbURL, Integer cacheExpireTime) throws SQLException {
 		  this.username = username;
 		  this.password = password;
 		  this.userDBName = scrubUserName(username);
@@ -75,7 +87,7 @@ public class DBManager {
 					
 				  //Creating the database for the first time.
 					createDatabase();
-					DatabaseCacheControl dbCacheControl = new DatabaseCacheControl(username, password, 30);
+					DatabaseCacheControl dbCacheControl = new DatabaseCacheControl(username, password, cacheExpireTime);
 					dbCacheControl.startRecachingService();
 			  } else {
 				  if(dbURL != null) {

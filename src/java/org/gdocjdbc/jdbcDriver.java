@@ -33,10 +33,8 @@ public class jdbcDriver extends org.hsqldb.jdbcDriver implements java.sql.Driver
 			throw new SQLException("For gdocjdbc currently only the URL of : \"jdbc:gdocjdbc\" is supported");
 		}
 		
-		String googleDocUsername = info.getProperty("user");
-		String googleDocPassword = info.getProperty("password");
 		
-		DBManager dbCreator = new DBManager(googleDocUsername, googleDocPassword);
+		DBManager dbCreator = new DBManager(info);
 		
 		//creating DB for the first time
 		//dbCreator.createDatabase();
