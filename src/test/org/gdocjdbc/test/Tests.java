@@ -11,10 +11,6 @@ import junit.framework.TestCase;
 
 public class Tests extends TestCase {
 
-	/*
-	 * !!!!!!!!!!!You need to set username and password here!!!!!!!!!!!!
-	 * 
-	 */
 	String username = null;
 	String password = null;
 	
