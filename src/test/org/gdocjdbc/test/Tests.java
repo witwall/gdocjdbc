@@ -15,10 +15,61 @@ public class Tests extends TestCase {
 	 * !!!!!!!!!!!You need to set username and password here!!!!!!!!!!!!
 	 * 
 	 */
-	String username = "blah@example.com";
-	String password = "mypassword";
+	String username = null;
+	String password = null;
 	
-	public void testGoogleDocJDBC() {
+	
+	
+	
+	
+	@Override
+	protected void setUp() throws Exception {
+		
+		username = System.getProperty("gdocjdbc.username");
+		password = System.getProperty("gdocjdbc.password");
+		
+		if(username == null) {
+			System.out.println("Google Doc account info missing: You have to set the gdocjdbc.username system property (-Dgdocjdbc.username=myname@gdocjdbc.org)");
+		}
+		
+		if(password == null) {
+			System.out.println("Google Doc account info missing: You have to set the gdocjdbc.password system property (-Dgdocjdbc.password=mypassword)");
+		}
+		
+	}
+
+	
+	/*
+	 * This is the basic test you'll want to run if you uploaded the test spreadsheet included in this project
+	 */
+	public void testSimpsonsSelect() {
+
+		
+		try {
+			Class.forName("org.gdocjdbc.jdbcDriver").newInstance();
+			//create a connection using the default cache time
+			Connection con = DriverManager.getConnection("jdbc:gdocjdbc", username, password);
+			Statement stmt = con.createStatement();
+			ResultSet rs = stmt.executeQuery("SELECT * FROM simpsonscharacters_Sheet1 where VOICEDBY='Dan Castellaneta'");
+			
+			
+			while (rs.next()) {
+				String s = rs.getString("CHARACTER");
+				String s2 = rs.getString("FIRSTAPPEARANCE");
+				String s3 = rs.getString("DESCRIPTIONROLE");
+				System.out.println("CHARACTER = " + s + ", FIRSTAPPEARANCE=" + s2+ " AND DESCRIPTIONROLE=" + s3);
+				}
+			
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} 
+	
+		
+	}
+	
+	
+	public void testGoogleDocJDBCCache() {
 		try {
 			//Driver driver = 
 			try {
